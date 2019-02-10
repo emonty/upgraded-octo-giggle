@@ -23,16 +23,20 @@
 
 using namespace std;
 
-vector<string> split(const string &in)
-{
-  istringstream stream(in);
+class Arguments {
+  istringstream stream;
+public:
   vector<string> parts;
-  string part;
-  while (getline(stream, part, '.')) {
-    parts.push_back(part);
+
+  Arguments(const string &in)
+    : stream { in }, parts { }
+  {
+    string part;
+    while (getline(stream, part, '.')) {
+      parts.push_back(part);
+    }
   }
-  return parts;
-}
+};
 
 int main(int, char**)
 {
@@ -45,14 +49,14 @@ int main(int, char**)
     // Apache will drop "preview.opendev.org", so our expected input will be:
     // site.75031cad206c4014ad7a3387091d15ab.openstack
 
-    auto parts = split(hostname);
-    if (parts.size() < 3) {
+    Arguments arguments(hostname);
+    if (arguments.parts.size() < 3) {
       cout << "not enough args" << endl;
       continue;
     }
-    auto artifact = parts[0];
-    auto buildid = parts[1];
-    auto tenant = parts[2];
+    auto artifact = arguments.parts[0];
+    auto buildid = arguments.parts[1];
+    auto tenant = arguments.parts[2];
     cout << artifact << endl
          << buildid << endl
          << tenant << endl;

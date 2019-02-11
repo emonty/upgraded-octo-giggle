@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-FROM debian:testing as builder
+FROM httpd:2.4 as builder
 
 RUN mkdir -p /output/bindep
 RUN apt-get update && apt-get install -y python3-pip git && pip3 install bindep
 COPY bindep.txt /bindep.txt
-RUN cd / && bindep -l newline > /output/bindep/run.txt
-RUN apt-get install -y $(bindep -b compile)
+RUN cd / \
+  && bindep -l newline > /output/bindep/run.txt \
+  && apt-get install -y $(bindep -b compile)
 COPY . /src
 RUN cd /src \
   && autoreconf -fi \
@@ -27,17 +28,18 @@ RUN cd /src \
   && make \
   && make install
 
-FROM debian:testing
+FROM httpd:2.4
 
+COPY ./rewrite.conf /usr/local/apache/conf/extra/rewrite.conf
+# Turn off all of the modules first, then enable proxy and rewrite
+RUN sed -i "s/^LoadModule/#LoadModule/" /usr/local/apache2/conf/httpd.conf \
+  && for f in proxy_http proxy rewrite ; do \
+       sed -i "s/#LoadModule ${f}_module/LoadModule ${f}_module/" /usr/local/apache2/conf/httpd.conf ;\
+     done \
+  && echo "Include conf/extra/rewrite.conf" >> /usr/local/apache2/conf/httpd.conf
 COPY --from=builder /output/bindep/run.txt /run.txt
+COPY --from=builder /usr/local/bin/zuul-preview /usr/local/bin/zuul-preview
 RUN apt-get update \
-  && apt-get install -y dumb-init apache2 $(cat /run.txt) \
+  && apt-get install -y $(cat /run.txt) \
   && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* /run.txt \
-  && a2enmod rewrite proxy proxy_http
-COPY ./vhost.conf /etc/apache2/sites-available/000-default.conf
-COPY --from=builder /usr/local /usr/local
-
-EXPOSE 80
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["/usr/sbin/apachectl", "-DFOREGROUND", "-e", "info"]
+  && rm -rf /var/lib/apt/lists/* /run.txt

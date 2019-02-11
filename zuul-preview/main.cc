@@ -18,7 +18,8 @@
  */
 
 #include <config.h>
-#include <pthread.h>
+
+#include <boost/optional.hpp>
 #include <cpprest/http_client.h>
 #include <bits/stdc++.h>
 
@@ -54,7 +55,7 @@ public:
 
   // Lookup the hostname in the cache and return the URL if present.
   // If the entry is present, it is moved to the head of the queue.
-  optional<const string> get(const string &key)
+  boost::optional<const string> get(const string &key)
   {
     auto location{map.find(key)};
     if (location == map.end())
@@ -105,7 +106,7 @@ int main(int, char**)
     // site.dbefc23dcc594577a8bfa4db4f9b0a8f.openstack
 
     auto val{cache.get(hostname)};
-    if (val.has_value()) {
+    if (val) {
       cout << val.value() << endl;
       continue;
     }
